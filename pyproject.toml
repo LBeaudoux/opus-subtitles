@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "opus-subtitles"
+version = "0.0.1"
+dependencies = [
+  "langcodes",
+  "lxml",
+  "requests",
+  "tqdm",
+  "urllib3",
+]
+requires-python = ">=3.10"
+authors = [
+  {name = "Laurent Beaudoux", email = "lbeaudoux@gmail.com"},
+]
+description = "A download manager for the OPUS OpenSubtitles corpus."
+readme = "README.md"
+license = "MIT"
+keywords = ["opus", "opensubtitles", "subtitles"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+]
+
+[project.urls]
+Homepage = "https://github.com/LBeaudoux/opus-subtitles"
+
+[tool.black]
+line-length = 79
+
+[tool.isort]
+profile = "black"
+line_length = 79
+
+[tool.setuptools]
+packages = ["opus_subtitles"]
