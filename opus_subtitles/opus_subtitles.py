@@ -135,22 +135,44 @@ def extract_subtitle_txt_files(
     logger.info(f"{nb_extracted} subtitle files extracted as .txt")
 
 
-def read_subtitle_lines(sub_txt_dir: str | Path) -> Generator[str, None, None]:
-    """Read subtitle lines from .txt files in a directory.
+def read_subtitle_lines(
+    from_path: str | Path,
+) -> Generator[tuple[str, str, str], None, None]:
+    """Read all subtitle lines from an archive of .xml files or a directory of
+    .txt files.
 
     Parameters
     ----------
-    sub_txt_dir : str | Path
-        The directory containing the .txt subtitle files.
+    from_path : str | Path
+        The path of the input ZIP file or directory containing subtitle files.
 
     Returns
     -------
-    Generator[str, None, None]
-        A generator yielding the lines of all subtitle files.
+    Generator[tuple[str, str, str], None, None]
+        A generator yielding the lines of all subtitle files along with their
+        IMDb and OPUS document IDs.
     """
-    subtitle_corpus = SubtitleCorpus(Path(sub_txt_dir))
-    return (
-        line
-        for sub in subtitle_corpus.txt_files()
-        for line in sub.read_lines()
-    )
+    from_path = Path(from_path)
+    if from_path.is_file() and from_path.suffix == ".zip":
+        logger.info(f"Reading subtitle lines from {from_path.resolve()}")
+        raw_zip = RawSubtitleZip(from_path)
+        return (
+            (line, imdb_id, doc_id)
+            for _, imdb_id, doc_id, xml_file in raw_zip.iter_xml_files()
+            for line in xml_file.get_lines()
+        )
+    elif from_path.is_dir():
+        logger.info(
+            f"Reading subtitle lines from directory {from_path.resolve()}"
+        )
+        subtitle_corpus = SubtitleCorpus(Path(from_path))
+        return (
+            (line, sub.imdb_id, sub.doc_id)
+            for sub in subtitle_corpus.txt_files()
+            for line in sub.read_lines()
+        )
+    else:
+        raise ValueError(
+            f"Invalid subtitle archive or directory: {from_path}. "
+            "Expected a directory or a single .zip file."
+        )

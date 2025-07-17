@@ -26,14 +26,14 @@ class SubtitleTXT:
         return (line.strip() for line in open(self._fp))
 
     @property
-    def imdb_id(self) -> int:
+    def imdb_id(self) -> str:
         """Get the IMDb ID of the subtitle."""
-        return int(self._fp.stem.split("_")[0])
+        return self._fp.stem.split("-")[0]
 
     @property
-    def doc_id(self) -> int:
+    def doc_id(self) -> str:
         """Get the document ID of the subtitle."""
-        return int(self._fp.stem.split("_")[1])
+        return self._fp.stem.split("-")[1]
 
 
 class SubtitleCorpus:
