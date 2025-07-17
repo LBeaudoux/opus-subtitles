@@ -1,7 +1,6 @@
 import logging
 from pathlib import Path
 from typing import Generator
-from urllib.parse import urlparse
 
 import requests
 
@@ -41,7 +40,7 @@ def list_opus_language_tags() -> list[str]:
 
 
 def download_raw_subtitle_zip(
-    opus_language_tag: str, to_dir: Path, overwrite: bool = True
+    opus_language_tag: str, to_dir: str | Path, overwrite: bool = True
 ) -> Path:
     """Download a raw subtitle ZIP archive.
 
@@ -49,7 +48,7 @@ def download_raw_subtitle_zip(
     ----------
     opus_language_tag : str
         The OPUS language tag for the subtitles.
-    to_dir : Path
+    to_dir : str | Path
         The directory to save the downloaded ZIP file.
     overwrite : bool, optional
         Whether to overwrite the existing ZIP file, by default True
@@ -61,18 +60,17 @@ def download_raw_subtitle_zip(
     """
     file_name = opus_language_tag + ".zip"
     from_url = DOWNLOAD_URL + file_name
-    to_path = to_dir.joinpath(file_name)
+    to_path = Path(to_dir).joinpath(file_name)
     if not to_path.exists() or overwrite:
-        from_host = urlparse(from_url).hostname
-        logger.info(f"Downloading {file_name} from {from_host}")
+        logger.info(f"Downloading {from_url} to {to_path.parent.resolve()}")
         download(from_url, to_dir)
 
     return to_path
 
 
 def extract_subtitle_txt_files(
-    from_zip: Path,
-    to_dir: Path,
+    from_zip: str | Path,
+    to_dir: str | Path,
     min_year: int | None = None,
     max_year: int | None = None,
     original_language_only: bool = False,
@@ -85,9 +83,9 @@ def extract_subtitle_txt_files(
 
     Parameters
     ----------
-    from_zip : Path
+    from_zip : str | Path
         The path to the input ZIP file.
-    to_dir : Path
+    to_dir : str | Path
         The directory to save the extracted .txt files.
     min_year : int | None, optional
         The minimum year for filtering subtitles, by default None
@@ -104,12 +102,12 @@ def extract_subtitle_txt_files(
         Whether to deduplicate consecutive subtitles, by default False
     """
     logger.info(
-        f"extracting {from_zip.resolve()} XML files as .txt files "
-        f"to {to_dir.resolve()}/"
+        f"extracting {Path(from_zip).resolve()} XML files as .txt files "
+        f"to {Path(to_dir).resolve()}/"
     )
     extracted_doc_ids = []
     extracted_imdb_ids = set()
-    raw_zip = RawSubtitleZip(from_zip)
+    raw_zip = RawSubtitleZip(Path(from_zip))
     raw_zip_lang = raw_zip.language_code
     for year, imdb_id, doc_id, xml_file in raw_zip.iter_xml_files():
         # avoid near-duplicate extractions
@@ -129,7 +127,7 @@ def extract_subtitle_txt_files(
         # conditional extraction
         xml_lines = xml_file.get_lines(dedup=deduplicate)
         if are_cased(xml_lines, threshold=min_cased):
-            txt_path = to_dir.joinpath(f"{imdb_id}-{doc_id}.txt")
+            txt_path = Path(to_dir).joinpath(f"{imdb_id}-{doc_id}.txt")
             SubtitleTXT(txt_path).write_lines(xml_lines)
             extracted_doc_ids.append(doc_id)
             extracted_imdb_ids.add(imdb_id)
@@ -137,12 +135,12 @@ def extract_subtitle_txt_files(
     logger.info(f"{nb_extracted} subtitle files extracted as .txt")
 
 
-def read_subtitle_lines(sub_txt_dir: Path) -> Generator[str, None, None]:
+def read_subtitle_lines(sub_txt_dir: str | Path) -> Generator[str, None, None]:
     """Read subtitle lines from .txt files in a directory.
 
     Parameters
     ----------
-    sub_txt_dir : Path
+    sub_txt_dir : str | Path
         The directory containing the .txt subtitle files.
 
     Returns
@@ -150,7 +148,7 @@ def read_subtitle_lines(sub_txt_dir: Path) -> Generator[str, None, None]:
     Generator[str, None, None]
         A generator yielding the lines of all subtitle files.
     """
-    subtitle_corpus = SubtitleCorpus(sub_txt_dir)
+    subtitle_corpus = SubtitleCorpus(Path(sub_txt_dir))
     return (
         line
         for sub in subtitle_corpus.txt_files()
