@@ -39,7 +39,7 @@ def list_opus_language_tags() -> list[str]:
         return []
 
 
-def download_raw_subtitle_zip(
+def download_subtitle_raw_zip(
     opus_language_tag: str, to_dir: str | Path, overwrite: bool = True
 ) -> Path:
     """Download a raw subtitle ZIP archive.
