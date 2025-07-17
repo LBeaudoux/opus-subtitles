@@ -18,7 +18,13 @@ DOWNLOAD_URL = "https://object.pouta.csc.fi/OPUS-OpenSubtitles/v2024/raw/"
 
 
 def list_opus_language_tags() -> list[str]:
-    """Fetch the list of available OPUS language tags from the API."""
+    """Fetch the list of available OPUS language tags from the OPUS API.
+
+    Returns
+    -------
+    list[str]
+        A list of available OPUS language tags.
+    """
     logger.info("Fetching available OPUS language tags...")
     response = requests.get(
         API_URL, params={"languages": True, "corpus": "OpenSubtitles"}
@@ -37,7 +43,22 @@ def list_opus_language_tags() -> list[str]:
 def download_raw_subtitle_zip(
     opus_language_tag: str, to_dir: Path, overwrite: bool = True
 ) -> Path:
+    """Download a raw subtitle ZIP archive.
 
+    Parameters
+    ----------
+    opus_language_tag : str
+        The OPUS language tag for the subtitles.
+    to_dir : Path
+        The directory to save the downloaded ZIP file.
+    overwrite : bool, optional
+        Whether to overwrite the existing ZIP file, by default True
+
+    Returns
+    -------
+    Path
+        The path to the downloaded ZIP file.
+    """
     file_name = opus_language_tag + ".zip"
     from_url = DOWNLOAD_URL + file_name
     to_path = to_dir.joinpath(file_name)
@@ -59,8 +80,28 @@ def extract_subtitle_txt_files(
     min_cased: float = 0.0,
     deduplicate: bool = False,
 ) -> None:
-    """Extract XML subtitle files from a ZIP archive and save them as .txt
+    """Extract XML subtitle files from a raw ZIP archive and save them as .txt
     files.
+
+    Parameters
+    ----------
+    from_zip : Path
+        The path to the input ZIP file.
+    to_dir : Path
+        The directory to save the extracted .txt files.
+    min_year : int | None, optional
+        The minimum year for filtering subtitles, by default None
+    max_year : int | None, optional
+        The maximum year for filtering subtitles, by default None
+    original_language_only : bool, optional
+        Whether to extract only subtitles in the original language, by default
+        False
+    one_subtitle_per_title : bool, optional
+        Whether to extract only one subtitle per title, by default False
+    min_cased : float, optional
+        The minimum proportion of cased subtitle lines, by default 0.0
+    deduplicate : bool, optional
+        Whether to deduplicate consecutive subtitles, by default False
     """
     logger.info(
         f"extracting {from_zip.resolve()} XML files as .txt files "
@@ -97,7 +138,18 @@ def extract_subtitle_txt_files(
 
 
 def read_subtitle_lines(sub_txt_dir: Path) -> Generator[str, None, None]:
+    """Read subtitle lines from .txt files in a directory.
 
+    Parameters
+    ----------
+    sub_txt_dir : Path
+        The directory containing the .txt subtitle files.
+
+    Returns
+    -------
+    Generator[str, None, None]
+        A generator yielding the lines of all subtitle files.
+    """
     subtitle_corpus = SubtitleCorpus(sub_txt_dir)
     return (
         line
