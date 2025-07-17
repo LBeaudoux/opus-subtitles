@@ -6,13 +6,17 @@ from zipfile import ZipFile
 from lxml import etree
 from tqdm import tqdm
 
-from .languages import LangTag
-from .utils import are_cased, deduplicate_consecutive, strip_whitespaces
+from .languages import get_language_code, standardize_tag
+from .utils import deduplicate_consecutive, strip_whitespaces
 
 logger = logging.getLogger(__name__)
 
 
 class SubtitleXML:
+    """Class to parse and extract information from OPUS OpenSubtitles XML
+    files.
+    """
+
     _parser = etree.XMLParser(recover=True, remove_blank_text=True)
 
     def __init__(self, xml_file: IO[bytes]) -> None:
@@ -20,6 +24,7 @@ class SubtitleXML:
         self._tree = etree.parse(self._f, SubtitleXML._parser)
 
     def get_lines(self, dedup: bool = False) -> list[str]:
+        """Get subtitle lines from the XML file."""
         try:
             lines = self._tree.xpath(".//s/text()")
         except (IndexError, AttributeError):
@@ -30,12 +35,9 @@ class SubtitleXML:
                 lines = deduplicate_consecutive(lines)
             return lines
 
-    def is_cased(self, threshold: float = 0.9) -> bool:
-        lines = self.get_lines(dedup=False)
-        return are_cased(lines, threshold=threshold)
-
     @property
     def language(self) -> str | None:
+        """Get the language of the subtitles."""
         try:
             language = self._tree.xpath(".//meta/subtitle/language/text()")[0]
         except (IndexError, AttributeError):
@@ -45,6 +47,7 @@ class SubtitleXML:
 
     @property
     def original(self) -> str:
+        """Get the name of the original language of the subtitles."""
         try:
             original = self._tree.xpath(".//meta/source/original/text()")[0]
         except (IndexError, AttributeError):
@@ -54,6 +57,7 @@ class SubtitleXML:
 
     @property
     def confidence(self) -> float | None:
+        """Get the confidence score of the subtitles."""
         try:
             confidence = self._tree.xpath(
                 ".//meta/subtitle/confidence/text()"
@@ -65,6 +69,7 @@ class SubtitleXML:
 
     @property
     def machine_translated(self) -> bool | None:
+        """Check if the subtitles are machine translated."""
         try:
             machine_translated = self._tree.xpath(
                 ".//meta/subtitle/machine_translated/text()"
@@ -74,71 +79,65 @@ class SubtitleXML:
         else:
             return bool(int(machine_translated))
 
+    @property
+    def language_code(self) -> str:
+        """Get the language code of the original language of the subtitles.
+        Macrolanguages are favoured over individual languages.
+        """
+        return get_language_code(self.original, macro=True)
+
 
 class RawSubtitleZip:
+    """Class to handle OPUS OpenSubtitles XML files in a ZIP archive."""
 
     def __init__(self, file_path: Path) -> None:
         self._fp = file_path
 
-    def list_xml_files(
-        self,
-        min_year: int | None = None,
-        max_year: int | None = None,
-    ) -> list[str]:
-        xml_paths = []
+    def count_xml_files(self) -> int:
+        """Count the number of XML files in the ZIP archive."""
+        cnt_xml_files = 0
         with ZipFile(self.path) as zf:
             for p in zf.namelist():
                 if p.endswith(".xml"):
-                    year = p.split("/")[-3]
-                    if (min_year or max_year) and year == "unknown":
-                        continue
-                    if min_year and int(year) < min_year:
-                        continue
-                    if max_year and int(year) > max_year:
-                        continue
-                    xml_paths.append(p)
-        return sorted(xml_paths)
+                    cnt_xml_files += 1
+
+        return cnt_xml_files
+
+    def list_xml_files(self) -> list[str]:
+        """List all XML files in the ZIP archive."""
+        with ZipFile(self.path) as zf:
+            xml_paths = filter(lambda x: x.endswith(".xml"), zf.namelist())
+
+        return sorted(list(xml_paths))
 
     def iter_xml_files(
         self,
-        xml_files: list[str],
-        original_language_only: bool = False,
-        one_subtitle_per_movie: bool = False,
-        min_cased: float = 0.0,
-    ) -> Generator[tuple[int, int, SubtitleXML], None, None]:
+    ) -> Generator[tuple[str, str, str, SubtitleXML], None, None]:
+        """Iterate over XML files in the ZIP archive."""
+        xml_files = self.list_xml_files()
         with tqdm(total=len(xml_files)) as pbar, ZipFile(self.path) as zf:
-            done_imdb_ids = set()
             for xml_file in xml_files:
-                imdb_id, doc_id = map(int, xml_file[:-4].split("/")[-2:])
-                if one_subtitle_per_movie and imdb_id in done_imdb_ids:
-                    pass
-                else:
-                    with zf.open(xml_file) as f:
-                        try:
-                            xml_file = SubtitleXML(f)
-                        except etree.XMLSyntaxError:
-                            msg = f"parsing of {xml_file} failed"
-                            logger.warning(msg)
-                        else:
-                            if (
-                                original_language_only
-                                and self.language_tag.language_name
-                                != LangTag(xml_file.original).language_name
-                            ):
-                                pass
-                            elif self.language_tag.scripts == [
-                                "Latn"
-                            ] and not xml_file.is_cased(threshold=min_cased):
-                                pass
-                            else:
-                                yield imdb_id, doc_id, xml_file
-                                done_imdb_ids.add(imdb_id)
+                year, imdb_id, doc_id = xml_file[:-4].split("/")[-3:]
+                with zf.open(xml_file) as f:
+                    try:
+                        xml_file = SubtitleXML(f)
+                    except etree.XMLSyntaxError:
+                        msg = f"parsing of {xml_file} failed"
+                        logger.warning(msg)
+                    else:
+                        yield year, imdb_id, doc_id, xml_file
                 pbar.update()
 
     @property
-    def language_tag(self) -> LangTag:
-        return LangTag(self._fp.stem)
+    def language_code(self) -> str:
+        """Get the language code of the ZIP archive. Macrolanguages are
+        favoured over individual languages."""
+        macro_language_tag = standardize_tag(self._fp.stem, macro=True)
+        macro_language_code = macro_language_tag.split("-")[0]
+
+        return macro_language_code
 
     @property
     def path(self) -> Path:
+        """Get the file path of the ZIP archive."""
         return self._fp
