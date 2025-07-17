@@ -3,6 +3,8 @@ from pathlib import Path
 from typing import Generator
 from urllib.parse import urlparse
 
+import requests
+
 from .archive import RawSubtitleZip
 from .download import download
 from .extraction import SubtitleCorpus, SubtitleTXT
@@ -11,7 +13,25 @@ from .utils import are_cased
 logger = logging.getLogger(__name__)
 
 
+API_URL = "https://opus.nlpl.eu/opusapi/"
 DOWNLOAD_URL = "https://object.pouta.csc.fi/OPUS-OpenSubtitles/v2024/raw/"
+
+
+def list_opus_language_tags() -> list[str]:
+    """Fetch the list of available OPUS language tags from the API."""
+    logger.info("Fetching available OPUS language tags...")
+    response = requests.get(
+        API_URL, params={"languages": True, "corpus": "OpenSubtitles"}
+    )
+    if response.status_code == 200:
+        data = response.json()
+        available_languages = data.get("languages", [])
+        return available_languages
+    else:
+        logger.error(
+            f"Failed to fetch available languages: {response.status_code}"
+        )
+        return []
 
 
 def download_raw_subtitle_zip(
