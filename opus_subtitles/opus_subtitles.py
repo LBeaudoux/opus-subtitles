@@ -14,9 +14,10 @@ DOWNLOAD_URL = "https://object.pouta.csc.fi/OPUS-OpenSubtitles/v2024/raw/"
 
 
 def download_raw_subtitle_zip(
-    file_name: str, to_dir: Path, overwrite: bool = True
+    opus_language_tag: str, to_dir: Path, overwrite: bool = True
 ) -> Path:
 
+    file_name = opus_language_tag + ".zip"
     from_url = DOWNLOAD_URL + file_name
     to_path = to_dir.joinpath(file_name)
     if not to_path.exists() or overwrite:
