@@ -4,10 +4,10 @@ from typing import Generator
 
 import requests
 
-from .archive import RawSubtitleZip
 from .download import download
-from .extraction import SubtitleCorpus, SubtitleTXT
+from .unzipped import SubtitleTXT, UnzippedSubtitles
 from .utils import are_cased
+from .zipped import ZippedSubtitles
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +68,7 @@ def download_subtitle_raw_zip(
     return to_path
 
 
-def extract_subtitle_txt_files(
+def unzip_subtitle_txt_files(
     from_zip: str | Path,
     to_dir: str | Path,
     original_language_only: bool = False,
@@ -99,27 +99,27 @@ def extract_subtitle_txt_files(
         f"extracting {Path(from_zip).resolve()} XML files as .txt files "
         f"to {Path(to_dir).resolve()}/"
     )
-    extracted_doc_ids = []
-    extracted_imdb_ids = set()
-    raw_zip = RawSubtitleZip(Path(from_zip))
-    raw_zip_lang = raw_zip.language_code
-    for imdb_id, doc_id, xml_file in raw_zip.iter_xml_files():
+    unzipped_doc_ids = []
+    unzipped_imdb_ids = set()
+    zipped_subs = ZippedSubtitles(Path(from_zip))
+    zipped_subs_lang = zipped_subs.language_code
+    for imdb_id, doc_id, xml_file in zipped_subs.iter_xml_files():
         # avoid near-duplicate extractions
-        if one_subtitle_per_title and imdb_id in extracted_imdb_ids:
+        if one_subtitle_per_title and imdb_id in unzipped_imdb_ids:
             continue
         # original language filtering
         if original_language_only:
-            if xml_file.language_code != raw_zip_lang:
+            if xml_file.language_code != zipped_subs_lang:
                 continue
         # conditional extraction
         xml_lines = xml_file.get_lines(dedup=deduplicate)
         if are_cased(xml_lines, threshold=min_cased):
             txt_path = Path(to_dir).joinpath(f"{imdb_id}-{doc_id}.txt")
             SubtitleTXT(txt_path).write_lines(xml_lines)
-            extracted_doc_ids.append(doc_id)
-            extracted_imdb_ids.add(imdb_id)
-    nb_extracted = len(extracted_doc_ids)
-    logger.info(f"{nb_extracted} subtitle files extracted as .txt")
+            unzipped_doc_ids.append(doc_id)
+            unzipped_imdb_ids.add(imdb_id)
+    nb_unzipped = len(unzipped_doc_ids)
+    logger.info(f"{nb_unzipped} subtitle files extracted as .txt")
 
 
 def read_subtitle_lines(
@@ -142,7 +142,7 @@ def read_subtitle_lines(
     from_path = Path(from_path)
     if from_path.is_file() and from_path.suffix == ".zip":
         logger.info(f"Reading subtitle lines from {from_path.resolve()}")
-        raw_zip = RawSubtitleZip(from_path)
+        raw_zip = ZippedSubtitles(from_path)
         return (
             (line, imdb_id, doc_id)
             for imdb_id, doc_id, xml_file in raw_zip.iter_xml_files()
@@ -152,7 +152,7 @@ def read_subtitle_lines(
         logger.info(
             f"Reading subtitle lines from directory {from_path.resolve()}"
         )
-        subtitle_corpus = SubtitleCorpus(Path(from_path))
+        subtitle_corpus = UnzippedSubtitles(Path(from_path))
         return (
             (line, sub.imdb_id, sub.doc_id)
             for sub in subtitle_corpus.txt_files()

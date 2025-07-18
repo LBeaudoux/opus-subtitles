@@ -87,7 +87,7 @@ class SubtitleXML:
         return get_language_code(self.original, macro=True)
 
 
-class RawSubtitleZip:
+class ZippedSubtitles:
     """Class to handle OPUS OpenSubtitles XML files in a ZIP archive."""
 
     def __init__(self, file_path: Path) -> None:

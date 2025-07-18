@@ -36,7 +36,7 @@ class SubtitleTXT:
         return self._fp.stem.split("-")[1]
 
 
-class SubtitleCorpus:
+class UnzippedSubtitles:
     """A class representing a collection of subtitle files in a directory."""
 
     def __init__(self, dir_path: Path) -> None:
