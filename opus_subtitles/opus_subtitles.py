@@ -71,8 +71,6 @@ def download_subtitle_raw_zip(
 def extract_subtitle_txt_files(
     from_zip: str | Path,
     to_dir: str | Path,
-    min_year: int | None = None,
-    max_year: int | None = None,
     original_language_only: bool = False,
     one_subtitle_per_title: bool = False,
     min_cased: float = 0.0,
@@ -87,10 +85,6 @@ def extract_subtitle_txt_files(
         The path to the input ZIP file.
     to_dir : str | Path
         The directory to save the extracted .txt files.
-    min_year : int | None, optional
-        The minimum year for filtering subtitles, by default None
-    max_year : int | None, optional
-        The maximum year for filtering subtitles, by default None
     original_language_only : bool, optional
         Whether to extract only subtitles in the original language, by default
         False
@@ -109,16 +103,9 @@ def extract_subtitle_txt_files(
     extracted_imdb_ids = set()
     raw_zip = RawSubtitleZip(Path(from_zip))
     raw_zip_lang = raw_zip.language_code
-    for year, imdb_id, doc_id, xml_file in raw_zip.iter_xml_files():
+    for imdb_id, doc_id, xml_file in raw_zip.iter_xml_files():
         # avoid near-duplicate extractions
         if one_subtitle_per_title and imdb_id in extracted_imdb_ids:
-            continue
-        # year filtering
-        if (min_year or max_year) and year == "unknown":
-            continue
-        if min_year and int(year) < min_year:
-            continue
-        if max_year and int(year) > max_year:
             continue
         # original language filtering
         if original_language_only:
@@ -158,7 +145,7 @@ def read_subtitle_lines(
         raw_zip = RawSubtitleZip(from_path)
         return (
             (line, imdb_id, doc_id)
-            for _, imdb_id, doc_id, xml_file in raw_zip.iter_xml_files()
+            for imdb_id, doc_id, xml_file in raw_zip.iter_xml_files()
             for line in xml_file.get_lines()
         )
     elif from_path.is_dir():

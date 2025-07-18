@@ -112,12 +112,12 @@ class RawSubtitleZip:
 
     def iter_xml_files(
         self,
-    ) -> Generator[tuple[str, str, str, SubtitleXML], None, None]:
+    ) -> Generator[tuple[str, str, SubtitleXML], None, None]:
         """Iterate over XML files in the ZIP archive."""
         xml_files = self.list_xml_files()
         with tqdm(total=len(xml_files)) as pbar, ZipFile(self.path) as zf:
             for xml_file in xml_files:
-                year, imdb_id, doc_id = xml_file[:-4].split("/")[-3:]
+                imdb_id, doc_id = xml_file[:-4].split("/")[-2:]
                 with zf.open(xml_file) as f:
                     try:
                         xml_file = SubtitleXML(f)
@@ -125,7 +125,7 @@ class RawSubtitleZip:
                         msg = f"parsing of {xml_file} failed"
                         logger.warning(msg)
                     else:
-                        yield year, imdb_id, doc_id, xml_file
+                        yield imdb_id, doc_id, xml_file
                 pbar.update()
 
     @property
