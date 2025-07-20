@@ -1,4 +1,3 @@
-import re
 from itertools import groupby
 from operator import itemgetter
 
@@ -9,8 +8,7 @@ def strip_whitespaces(my_texts: list[str]) -> list[str]:
     >>> strip_whitespaces([" foo", "  \tbar  "])
     ['foo', 'bar']
     """
-    stripped_texts = map(lambda x: re.sub(r"^\s+|\s+$", "", x), my_texts)
-    return list(filter(None, stripped_texts))
+    return list(filter(None, map(lambda x: x.strip(), my_texts)))
 
 
 def deduplicate_consecutive(my_texts: list[str]) -> list[str]:
