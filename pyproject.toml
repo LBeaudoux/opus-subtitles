@@ -10,7 +10,6 @@ dependencies = [
   "lxml",
   "requests",
   "tqdm",
-  "urllib3",
 ]
 requires-python = ">=3.10"
 authors = [

@@ -1,5 +1,6 @@
 from itertools import groupby
 from operator import itemgetter
+from typing import Generator, Iterable
 
 
 def strip_whitespaces(my_texts: list[str]) -> list[str]:
@@ -33,5 +34,15 @@ def is_cased(my_text: str) -> bool:
     return not (my_text.isupper() or my_text.islower())
 
 
-def are_cased(my_texts: list[str], threshold: float = 0.9) -> bool:
-    return len(list(filter(is_cased, my_texts))) / len(my_texts) >= threshold
+def iter_batch(
+    iterable: Iterable, batch_size: int
+) -> Generator[list, None, None]:
+    """Yield successive n-sized chunks from iterable."""
+    batch = []
+    for item in iterable:
+        batch.append(item)
+        if len(batch) == batch_size:
+            yield batch
+            batch = []
+    if batch:
+        yield batch

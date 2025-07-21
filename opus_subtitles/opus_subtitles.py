@@ -6,7 +6,6 @@ import requests
 
 from .download import download
 from .unzipped import SubtitleTXT, UnzippedSubtitles
-from .utils import are_cased
 from .zipped import ZippedSubtitles
 
 logger = logging.getLogger(__name__)
@@ -71,10 +70,12 @@ def download_subtitle_raw_zip(
 def unzip_subtitle_txt_files(
     from_zip: str | Path,
     to_dir: str | Path,
-    original_language_only: bool = False,
-    one_subtitle_per_title: bool = False,
-    min_cased: float = 0.0,
+    distinct_title: bool = False,
+    original_only: bool = False,
+    cased_only: bool = False,
     deduplicate: bool = False,
+    batch_size: int = 1000,
+    nb_workers: int | None = None,
 ) -> None:
     """Extract XML subtitle files from a raw ZIP archive and save them as .txt
     files.
@@ -85,41 +86,41 @@ def unzip_subtitle_txt_files(
         The path to the input ZIP file.
     to_dir : str | Path
         The directory to save the extracted .txt files.
-    original_language_only : bool, optional
+    distinct_title : bool, optional
+        Whether to extract only one subtitle per IMDb ID, by default False
+    original_only : bool, optional
         Whether to extract only subtitles in the original language, by default
         False
-    one_subtitle_per_title : bool, optional
-        Whether to extract only one subtitle per title, by default False
-    min_cased : float, optional
-        The minimum proportion of cased subtitle lines, by default 0.0
+    cased_only : bool, optional
+        Whether to only include cased subtitles, by default False
     deduplicate : bool, optional
         Whether to deduplicate consecutive subtitles, by default False
+    batch_size : int, optional
+        The number of XML files to process in each batch, by default 1000
+    nb_workers : int | None, optional
+        The number of worker processes to use for parallel processing. If None,
+        the number of CPU cores is used, by default None
     """
     logger.info(
         f"extracting {Path(from_zip).resolve()} XML files as .txt files "
         f"to {Path(to_dir).resolve()}/"
     )
     unzipped_doc_ids = []
-    unzipped_imdb_ids = set()
     zipped_subs = ZippedSubtitles(Path(from_zip))
-    zipped_subs_lang = zipped_subs.language_code
-    for imdb_id, doc_id, xml_file in zipped_subs.iter_xml_files():
-        # avoid near-duplicate extractions
-        if one_subtitle_per_title and imdb_id in unzipped_imdb_ids:
-            continue
-        # original language filtering
-        if original_language_only:
-            if xml_file.language_code != zipped_subs_lang:
-                continue
-        # conditional extraction
-        xml_lines = xml_file.get_lines(dedup=deduplicate)
-        if are_cased(xml_lines, threshold=min_cased):
-            txt_path = Path(to_dir).joinpath(f"{imdb_id}-{doc_id}.txt")
-            SubtitleTXT(txt_path).write_lines(xml_lines)
-            unzipped_doc_ids.append(doc_id)
-            unzipped_imdb_ids.add(imdb_id)
+    for imdb_id, doc_id, xml_lines in zipped_subs.iter_xml_files(
+        distinct_title=distinct_title,
+        original_only=original_only,
+        cased_only=cased_only,
+        deduplicate=deduplicate,
+        batch_size=batch_size,
+        nb_workers=nb_workers,
+    ):
+        txt_path = Path(to_dir).joinpath(f"{imdb_id}-{doc_id}.txt")
+        subtitle_txt = SubtitleTXT(txt_path)
+        subtitle_txt.write_lines(xml_lines)
+        unzipped_doc_ids.append(doc_id)
     nb_unzipped = len(unzipped_doc_ids)
-    logger.info(f"{nb_unzipped} subtitle files extracted as .txt")
+    logger.info(f"{nb_unzipped} subtitles extracted as .txt files")
 
 
 def read_subtitle_lines(
@@ -145,8 +146,8 @@ def read_subtitle_lines(
         raw_zip = ZippedSubtitles(from_path)
         return (
             (line, imdb_id, doc_id)
-            for imdb_id, doc_id, xml_file in raw_zip.iter_xml_files()
-            for line in xml_file.get_lines()
+            for imdb_id, doc_id, lines in raw_zip.iter_xml_files()
+            for line in lines
         )
     elif from_path.is_dir():
         logger.info(
