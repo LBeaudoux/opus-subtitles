@@ -162,7 +162,7 @@ class ZippedSubtitles:
             f"processing {nb_xml_files} XML files in {nb_batches} batches "
             f"with {nb_workers} workers, {batch_size} files per batch:"
         )
-        with tqdm(total=nb_batches, unit="batch") as pbar:
+        with tqdm(total=nb_xml_files, unit="file") as pbar:
             with mp.Pool(processes=nb_workers) as pool:
                 batches = self._iter_batch_xml_files(
                     distinct_title=distinct_title, batch_size=batch_size
@@ -170,7 +170,7 @@ class ZippedSubtitles:
                 for result_batch in pool.imap_unordered(parse_batch, batches):
                     for imdb_id, doc_id, lines in result_batch:
                         yield (imdb_id, doc_id, lines)
-                    pbar.update(1)
+                    pbar.update(min(nb_xml_files - pbar.n, batch_size))
 
     def _iter_batch_xml_files(
         self, distinct_title: bool = False, batch_size: int = 1000
