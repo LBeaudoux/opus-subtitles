@@ -12,30 +12,30 @@ pip install git+https://github.com/LBeaudoux/opus-subtitles.git#egg=opus-subtitl
 
 Here are some examples of how to use the `opus-subtitles` package.
 
-### List Available Languages
+### List available languages
 
 ```python
-from opus_subtitles import list_opus_language_tags
+from opus_subtitles import list_opus_opensubtitles_languages
 
-list_opus_language_tags() # Output: ['bg', 'cs', ... , 'zh_ze']
+list_opus_opensubtitles_languages() # Output: ['bg', 'cs', ... , 'zh_ze']
 ```
 
-### Download a Subtitle Archive
+### Download a subtitle archive
 
 ```python
-from opus_subtitles import download_subtitle_raw_zip
+from opus_subtitles import download_subtitles
 
-download_subtitle_raw_zip("zh_ze", to_dir="data", overwrite=True)  
+download_subtitles("fr", to_dir="subtitles", overwrite=True)  
 ```
 
-### Extract Subtitle Files
+### Extract subtitle files
 
 ```python
-from opus_subtitles import unzip_subtitle_txt_files
+from opus_subtitles import extract_subtitles
 
-unzip_subtitle_txt_files(
-    "fr.zip",
-    to_dir="fr_subtitles",   
+extract_subtitles(
+    "subtitles/fr.zip",
+    to_dir="subtitles/fr",
     distinct_title=True,
     original_only=True,
     cased_only=True,
@@ -43,25 +43,30 @@ unzip_subtitle_txt_files(
 )
 ```
 
-### Read Subtitle Lines
-
-- From a ZIP archive:
+### Read subtitle lines from an extracted directory
 
 ```python
-from opus_subtitles import read_subtitle_lines
+from opus_subtitles import read_extracted_subtitles
 
-for line, imdb_id, doc_id in read_subtitle_lines("fr.zip"):
+for line, imdb_id, doc_id in read_extracted_subtitles("subtitles/fr/"):
     print(line, imdb_id, doc_id)
 ```
 
-- From an extracted directory:
+### Read subtitle lines directly from an archive
 
 ```python
-from opus_subtitles import read_subtitle_lines
+from opus_subtitles import read_zipped_subtitles
 
-for line, imdb_id, doc_id in read_subtitle_lines("fr_subtitles/"):
+for line, imdb_id, doc_id in read_zipped_subtitles(
+    "subtitles/fr.zip",
+    distinct_title=True,
+    original_only=True,
+    cased_only=True,
+    deduplicate=True,
+):
     print(line, imdb_id, doc_id)
 ```
+
 
 ## Acknowledgments
 

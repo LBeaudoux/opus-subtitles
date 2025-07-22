@@ -1,17 +1,19 @@
 import logging
 
 from .opus_subtitles import (
-    download_subtitle_raw_zip,
-    list_opus_language_tags,
-    read_subtitle_lines,
-    unzip_subtitle_txt_files,
+    download_subtitles,
+    extract_subtitles,
+    list_opus_opensubtitles_languages,
+    read_extracted_subtitles,
+    read_zipped_subtitles,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 
 __all__ = [
-    "download_subtitle_raw_zip",
-    "unzip_subtitle_txt_files",
-    "list_opus_language_tags",
-    "read_subtitle_lines",
+    "download_subtitles",
+    "extract_subtitles",
+    "list_opus_opensubtitles_languages",
+    "read_extracted_subtitles",
+    "read_zipped_subtitles",
 ]

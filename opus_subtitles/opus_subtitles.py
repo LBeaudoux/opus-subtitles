@@ -15,7 +15,7 @@ API_URL = "https://opus.nlpl.eu/opusapi/"
 DOWNLOAD_URL = "https://object.pouta.csc.fi/OPUS-OpenSubtitles/v2024/raw/"
 
 
-def list_opus_language_tags() -> list[str]:
+def list_opus_opensubtitles_languages() -> list[str]:
     """Fetch the list of available OPUS language tags from the OPUS API.
 
     Returns
@@ -38,7 +38,7 @@ def list_opus_language_tags() -> list[str]:
         return []
 
 
-def download_subtitle_raw_zip(
+def download_subtitles(
     opus_language_tag: str, to_dir: str | Path, overwrite: bool = True
 ) -> Path:
     """Download a raw subtitle ZIP archive.
@@ -67,7 +67,7 @@ def download_subtitle_raw_zip(
     return to_path
 
 
-def unzip_subtitle_txt_files(
+def extract_subtitles(
     from_zip: str | Path,
     to_dir: str | Path,
     distinct_title: bool = False,
@@ -123,16 +123,52 @@ def unzip_subtitle_txt_files(
     logger.info(f"{nb_unzipped} subtitles extracted as .txt files")
 
 
-def read_subtitle_lines(
+def read_extracted_subtitles(
     from_path: str | Path,
 ) -> Generator[tuple[str, str, str], None, None]:
-    """Read all subtitle lines from an archive of .xml files or a directory of
-    .txt files.
+    """Read all subtitle lines from a directory of .txt files.
 
     Parameters
     ----------
     from_path : str | Path
-        The path of the input ZIP file or directory containing subtitle files.
+        The path of the directory containing subtitle files.
+
+    Returns
+    -------
+    Generator[tuple[str, str, str], None, None]
+        A generator yielding the lines of all subtitle files along with their
+        IMDb and OPUS document IDs.
+    """
+    from_path = Path(from_path)
+    if from_path.is_dir():
+        logger.info(
+            f"Reading subtitle lines from directory {from_path.resolve()}"
+        )
+        subtitle_corpus = UnzippedSubtitles(Path(from_path))
+        return (
+            (line, sub.imdb_id, sub.doc_id)
+            for sub in subtitle_corpus.txt_files()
+            for line in sub.read_lines()
+        )
+    else:
+        raise ValueError(f"Invalid subtitle directory: {from_path}.")
+
+
+def read_zipped_subtitles(
+    from_path: str | Path,
+    distinct_title: bool = False,
+    original_only: bool = False,
+    cased_only: bool = False,
+    deduplicate: bool = False,
+    batch_size: int = 1000,
+    nb_workers: int | None = None,
+) -> Generator[tuple[str, str, str], None, None]:
+    """Read all subtitle lines from an archive of .xml files.
+
+    Parameters
+    ----------
+    from_path : str | Path
+        The path of the input ZIP file containing subtitle files.
 
     Returns
     -------
@@ -146,21 +182,15 @@ def read_subtitle_lines(
         raw_zip = ZippedSubtitles(from_path)
         return (
             (line, imdb_id, doc_id)
-            for imdb_id, doc_id, lines in raw_zip.iter_xml_files()
+            for imdb_id, doc_id, lines in raw_zip.iter_xml_files(
+                distinct_title=distinct_title,
+                original_only=original_only,
+                cased_only=cased_only,
+                deduplicate=deduplicate,
+                batch_size=batch_size,
+                nb_workers=nb_workers,
+            )
             for line in lines
         )
-    elif from_path.is_dir():
-        logger.info(
-            f"Reading subtitle lines from directory {from_path.resolve()}"
-        )
-        subtitle_corpus = UnzippedSubtitles(Path(from_path))
-        return (
-            (line, sub.imdb_id, sub.doc_id)
-            for sub in subtitle_corpus.txt_files()
-            for line in sub.read_lines()
-        )
     else:
-        raise ValueError(
-            f"Invalid subtitle archive or directory: {from_path}. "
-            "Expected a directory or a single .zip file."
-        )
+        raise ValueError(f"Invalid subtitle archive: {from_path}.")
