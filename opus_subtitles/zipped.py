@@ -9,7 +9,7 @@ from zipfile import ZipFile
 from lxml import etree
 from tqdm import tqdm
 
-from .languages import get_language_code, standardize_tag
+from .languages import get_language_code
 from .utils import (
     deduplicate_consecutive,
     is_cased,
@@ -54,14 +54,20 @@ class SubtitleXML:
             return language
 
     @property
-    def original(self) -> str:
-        """Get the name of the original language of the subtitles."""
+    def original_language(self) -> str:
+        """Get the ISO 639-3 identifier of the main original language of the
+        subtitles. Macrolanguages are favoured over individual languages.
+        """
         try:
             original = self._tree.xpath(".//meta/source/original/text()")[0]
         except (IndexError, AttributeError):
             return ""
         else:
-            return original.split(",")[0].strip()
+            lang_code = get_language_code(original, macro=True)
+            if not lang_code and original.count(",") > 0:
+                main_original = original.split(",")[0].strip()
+                lang_code = get_language_code(main_original, macro=True)
+            return lang_code
 
     @property
     def confidence(self) -> float | None:
@@ -86,13 +92,6 @@ class SubtitleXML:
             return
         else:
             return bool(int(machine_translated))
-
-    @property
-    def language_code(self) -> str:
-        """Get the language code of the original language of the subtitles.
-        Macrolanguages are favoured over individual languages.
-        """
-        return get_language_code(self.original, macro=True)
 
 
 class ZippedSubtitles:
@@ -145,7 +144,10 @@ class ZippedSubtitles:
             for imdb_id, doc_id, xml_bytes in batch:
                 subtitle_xml = SubtitleXML(xml_bytes)
                 # original language filtering
-                if origin_lang and subtitle_xml.language_code != origin_lang:
+                if (
+                    origin_lang
+                    and subtitle_xml.original_language != origin_lang
+                ):
                     continue
                 # cased subtitle filtering
                 lines = subtitle_xml.get_lines(dedup=deduplicate)
@@ -191,13 +193,10 @@ class ZippedSubtitles:
 
     @property
     def language_code(self) -> str:
-        """Get the language code of the ZIP archive. Macrolanguages are
-        favoured over individual languages.
+        """Get the ISO 639 language identifier of the ZIP archive.
+        Macrolanguages are favoured over individual languages.
         """
-        macro_language_tag = standardize_tag(self._fp.stem, macro=True)
-        macro_language_code = macro_language_tag.split("-")[0]
-
-        return macro_language_code
+        return get_language_code(self._fp.stem, macro=True)
 
     @property
     def path(self) -> Path:

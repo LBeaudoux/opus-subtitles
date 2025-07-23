@@ -6,6 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "opus-subtitles"
 version = "0.0.3"
 dependencies = [
+  "iso639-lang",
   "langcodes",
   "lxml",
   "requests",
