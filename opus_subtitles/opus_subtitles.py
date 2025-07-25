@@ -40,7 +40,7 @@ def list_opus_opensubtitles_languages() -> list[str]:
 
 def download_subtitles(
     opus_language_tag: str, to_dir: str | Path, overwrite: bool = True
-) -> Path:
+) -> Path | None:
     """Download a raw subtitle ZIP archive.
 
     Parameters
@@ -54,15 +54,15 @@ def download_subtitles(
 
     Returns
     -------
-    Path
-        The path to the downloaded ZIP file.
+    Path | None
+        The path to the downloaded ZIP file, if this file exists.
     """
     file_name = opus_language_tag + ".zip"
     from_url = DOWNLOAD_URL + file_name
     to_path = Path(to_dir).joinpath(file_name)
     if not to_path.exists() or overwrite:
         logger.info(f"Downloading {from_url} to {to_path.parent.resolve()}")
-        download(from_url, to_dir)
+        to_path = download(from_url, to_dir)
 
     return to_path
 
